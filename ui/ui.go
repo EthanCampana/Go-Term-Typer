@@ -16,10 +16,11 @@ type Menu interface {
 }
 
 type Sprite struct {
-	Style settings.DisplayStyle
-	Char  rune
-	Xpos  int
-	Ypos  int
+	Style   settings.DisplayStyle
+	Char    rune
+	Xpos    int
+	Ypos    int
+	Correct bool
 }
 
 type Screen struct {
@@ -42,10 +43,11 @@ func CursorToSprite(input string, settings *settings.Settings) []*Sprite {
 	out := []*Sprite{}
 	for _, r := range []rune(input) {
 		out = append(out, &Sprite{
-			Style: settings.CursorColor,
-			Char:  r,
-			Xpos:  0,
-			Ypos:  0,
+			Style:   settings.CursorColor,
+			Char:    r,
+			Xpos:    0,
+			Ypos:    0,
+			Correct: false,
 		})
 	}
 	return out

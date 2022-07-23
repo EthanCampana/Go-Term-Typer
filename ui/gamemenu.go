@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"termtyper/settings"
+	"termtyper/stats"
 	util "termtyper/utils"
 	"time"
 
@@ -16,6 +17,7 @@ type GameMenu struct {
 	IncorrectTextColor settings.DisplayStyle
 	GameContainer      *Container
 	GameCursor         *GameCursor
+	GameStats          *stats.Stats
 	GameStart          bool
 	yIndex             int
 	xIndex             int
@@ -36,6 +38,7 @@ func NewGameMenu(c *Container, s *settings.Settings) *GameMenu {
 		Xpos:  c.xBound.begin,
 		Ypos:  c.yBound.begin,
 	}
+	gs := stats.New()
 
 	return &GameMenu{
 		words:              words,
@@ -43,6 +46,7 @@ func NewGameMenu(c *Container, s *settings.Settings) *GameMenu {
 		IncorrectTextColor: s.IncorrectTextColor,
 		GameContainer:      c,
 		GameCursor:         gc,
+		GameStats:          gs,
 		GameStart:          false,
 		xIndex:             0,
 		yIndex:             0,
@@ -102,7 +106,7 @@ func (gm *GameMenu) Show(s *Screen) {
 	r, _, _, _ := s.Window.GetContent(gm.GameCursor.Xpos, gm.GameContainer.yCursor)
 
 	debug2 := fmt.Sprintf("gcx:%d gcy:%d val:%s", gm.GameCursor.Xpos, gm.GameCursor.Ypos, string(r))
-	debug4 := fmt.Sprintf("Word Index: %d", gm.wordIndex)
+	debug4 := fmt.Sprintf("wpm: %d", gm.GameStats.Wpm)
 	debug5 := fmt.Sprintf("Word Index: %d", gm.yIndex)
 	s.DrawContent(1, 1, DebugStringToSprite(debug))
 	s.DrawContent(1, 2, DebugStringToSprite(debug3))
@@ -194,9 +198,23 @@ func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 			} else {
 				gm.xIndex++
 			}
+
 			gm.GameCursor.Xpos = gm.words[gm.yIndex][gm.xIndex].Xpos
 			gm.GameCursor.Ypos = gm.words[gm.yIndex][gm.xIndex].Ypos
+			wpmCheck := false
+			for _, c := range gm.words[gm.yIndex-2] {
+				if c.Correct == false {
+					wpmCheck = false
+					break
+				}
+				wpmCheck = true
 
+			}
+			if wpmCheck {
+				gm.GameStats.Wpm++
+			}
+
+			return
 		}
 
 	} else {
@@ -212,8 +230,12 @@ func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 
 		if ev.Rune() != r {
 			gm.words[gm.yIndex][gm.xIndex].Style = gm.IncorrectTextColor
+			gm.words[gm.yIndex][gm.xIndex].Correct = false
+			gm.GameStats.Streak = 0
 		} else {
 			gm.words[gm.yIndex][gm.xIndex].Style = gm.CorrectTextColor
+			gm.words[gm.yIndex][gm.xIndex].Correct = true
+			gm.GameStats.Streak++
 		}
 		// Draw the Option to the Screen
 		s.Window.SetContent(
