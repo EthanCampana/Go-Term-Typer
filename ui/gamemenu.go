@@ -16,6 +16,7 @@ type GameMenu struct {
 	IncorrectTextColor settings.DisplayStyle
 	GameContainer      *Container
 	GameCursor         *GameCursor
+	GameStart          bool
 	yIndex             int
 	xIndex             int
 	wordIndex          int
@@ -42,6 +43,7 @@ func NewGameMenu(c *Container, s *settings.Settings) *GameMenu {
 		IncorrectTextColor: s.IncorrectTextColor,
 		GameContainer:      c,
 		GameCursor:         gc,
+		GameStart:          false,
 		xIndex:             0,
 		yIndex:             0,
 		wordIndex:          0,
@@ -54,6 +56,9 @@ func (gm *GameMenu) StartGameTimer(s *Screen) {
 	go func(s *Screen) {
 		i := 60
 		for {
+			if !gm.GameStart {
+				continue
+			}
 			select {
 			case <-ticker.C:
 				if i == 60 {
@@ -85,6 +90,8 @@ func (gm *GameMenu) Show(s *Screen) {
 			gm.wordIndex++
 		}
 	}
+	gm.GameCursor.Xpos = gm.words[gm.yIndex][gm.xIndex].Xpos
+	gm.GameCursor.Ypos = gm.words[gm.yIndex][gm.xIndex].Ypos
 	// Debug
 	debug := fmt.Sprintf("cx:%d cy:%d val:%s", gm.words[gm.yIndex][gm.xIndex].Xpos, gm.words[gm.yIndex][gm.xIndex].Ypos, string(gm.words[gm.yIndex][gm.xIndex].Char))
 	debug3 := fmt.Sprintf("cx_begin:%d  cx_end:%d cy_begin:%d cy_end:%d",
@@ -93,63 +100,33 @@ func (gm *GameMenu) Show(s *Screen) {
 		gm.GameContainer.yBound.begin,
 		gm.GameContainer.yBound.end)
 	r, _, _, _ := s.Window.GetContent(gm.GameCursor.Xpos, gm.GameContainer.yCursor)
+
 	debug2 := fmt.Sprintf("gcx:%d gcy:%d val:%s", gm.GameCursor.Xpos, gm.GameCursor.Ypos, string(r))
+	debug4 := fmt.Sprintf("Word Index: %d", gm.wordIndex)
+	debug5 := fmt.Sprintf("Word Index: %d", gm.yIndex)
 	s.DrawContent(1, 1, DebugStringToSprite(debug))
 	s.DrawContent(1, 2, DebugStringToSprite(debug3))
 	s.DrawContent(1, 3, DebugStringToSprite(debug2))
+	s.DrawContent(1, 4, DebugStringToSprite(debug4))
+	s.DrawContent(1, 5, DebugStringToSprite(debug5))
 
 	// Draw cursor
 	s.Window.SetContent(gm.GameCursor.Xpos, gm.GameCursor.Ypos, gm.words[gm.yIndex][gm.xIndex].Char, nil, tcell.Style(gm.GameCursor.Style))
 }
 
-/*
-Resize notes:
-To find the cursor position after resize:
-new x : cur x * change in x of the grid (oldx / new x) + any modifiers (screen wrapping etc)
-new y : same as x ^
-We need to account for whether the positions round up or down.
-ideally the rune values should be the same  before_rune == after_rune
-This is another check to make sure we ended up at the same position
-
-
-Static Items can be resized the same way as the other menu's
-
-*/
-/*
-Game Design Notes:
-- There will be no new lines just spaces Woohooo We can just have one massive [][]*Sprite
-	- The way things are drawn to the screen will handle the wrapping of content
-	- We drawing words to a screen we should make sure it fits len(word) < len(empty space in line) if not draw it on the next lin
-
-- Game area bounds
-- We will need a new function DrawContentInBounds()
-	- This function should fill the game area space with as much content as possible
-	- Once the Player finishes all the information in the area it should be  called again and draw new content
-	- The cursor should be moved to the top-left bound
-  - We check the last word to see if there is any wrong characters. If so word is not counted and other statitics
-  - Space and Enter should be disabled on letters
-
-- BackSpacing a.k.a erasing errors:
-	- []*Sprite is 1 whole word
-	- [][]*Sprite will be a line of words
-	- We will need two counters that we will need to keep track internally of where we are at.
-	- Using array bounds we don't have to worry about overflow.
-	- If we update the UI with when they type the wrong character with the wrong character.
-	- all we have to do is move the counter back one space to get the data that is present
-
-
-*/
-
 func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 	key := ev.Key()
 
 	if key == tcell.KeyEsc {
+
 		s.Window.Clear()
 		s.CurrentMenu = s.MenuList[0]
 		s.CurrentMenu.(*MainMenu).animStopped = false
 		s.CurrentMenu.Resize(s)
 		return
+
 	} else if key == tcell.KeyBackspace2 {
+
 		if gm.xIndex-1 < 0 {
 			if gm.yIndex-1 < 0 {
 				return
@@ -208,20 +185,6 @@ func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 		return
 
 	} else if key == tcell.KeyEnter {
-		//Enter new line keys stuff
-
-		// if gm.words[gm.yIndex][gm.xIndex].Char == ' ' && len(gm.words[gm.yIndex+1]) > gm.GameContainer.xBound.end-gm.GameCursor.Xpos {
-		// 	gm.GameCursor.Xpos = gm.GameContainer.xBound.begin
-		// 	gm.GameCursor.Ypos++
-		// 	gm.xIndex = 0
-		// 	gm.yIndex++
-
-		// }
-		// if gm.words[gm.yIndex][gm.xIndex].Char == ' ' && gm.words[gm.yIndex+1][gm.xIndex].Char != ' ' {
-		// 	gm.GameCursor.Xpos++
-		// 	gm.xIndex = 0
-		// 	gm.yIndex++
-		// }
 
 		if gm.words[gm.yIndex][gm.xIndex].Char == ' ' {
 
@@ -237,6 +200,8 @@ func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 		}
 
 	} else {
+
+		gm.GameStart = true
 		r := ' '
 		if gm.GameCursor.Xpos == gm.words[gm.yIndex][gm.xIndex].Xpos && gm.GameCursor.Ypos == gm.words[gm.yIndex][gm.xIndex].Ypos {
 			r = gm.words[gm.yIndex][gm.xIndex].Char
@@ -258,14 +223,7 @@ func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 			nil,
 			tcell.Style(gm.words[gm.yIndex][gm.xIndex].Style),
 		)
-		// Check if we exit the bounds of the container
-		// if gm.GameCursor.Xpos+1 > gm.GameContainer.xBound.end {
-		// 	gm.GameCursor.Xpos = gm.GameContainer.xBound.begin
-		// 	gm.GameCursor.Ypos++
-		// } else {
-		// 	gm.GameCursor.Xpos++
-		// }
-		// Check if we exited the word
+
 		if gm.xIndex+1 > len(gm.words[gm.yIndex])-1 {
 			gm.xIndex = 0
 			gm.yIndex++
@@ -276,27 +234,28 @@ func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 		gm.GameCursor.Ypos = gm.words[gm.yIndex][gm.xIndex].Ypos
 
 	}
+	if gm.wordIndex-1 == gm.yIndex {
+		gm.wordIndex--
+		gm.GameContainer.xCursor = gm.GameContainer.xBound.begin
+		gm.GameContainer.yCursor = gm.GameContainer.yBound.begin
+		gm.GameContainer.isFull = false
+		s.Window.Clear()
+	}
+
 	return
 }
 
 func (gm *GameMenu) Resize(s *Screen) {
-	// oldx, oldy := s.Window.Size()
 	s.Window.Sync()
 	s.Window.Clear()
 	winX, winY := s.Window.Size()
 	new_Container := NewContainer(winX, winY)
-	// xDiff := winX / oldx
-	// yDiff := winY / oldy
-	// To Get the new Cursor location we multiply its current location with the differance in change
-	// gm.GameCursor.Xpos *= xDiff
-	// gm.GameCursor.Ypos *= yDiff
 	if gm.GameContainer.Size > new_Container.Size {
 		gm.wordIndex = gm.yIndex
 		gm.GameContainer = new_Container
 		gm.GameCursor.Xpos = gm.GameContainer.xBound.begin + gm.xIndex
 		gm.GameCursor.Ypos = gm.GameContainer.yBound.begin
 	} else {
-		// I Already Know this is going to cause a bunch of problems... Need better Math here
 		gm.wordIndex = 0
 		gm.GameContainer = new_Container
 	}
