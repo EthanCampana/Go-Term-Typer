@@ -19,6 +19,7 @@ type GameMenu struct {
 	GameCursor         *GameCursor
 	GameStats          *stats.Stats
 	GameStart          bool
+	GameEnd            bool
 	yIndex             int
 	xIndex             int
 	wordIndex          int
@@ -48,6 +49,7 @@ func NewGameMenu(c *Container, s *settings.Settings) *GameMenu {
 		GameCursor:         gc,
 		GameStats:          gs,
 		GameStart:          false,
+		GameEnd:            false,
 		xIndex:             0,
 		yIndex:             0,
 		wordIndex:          0,
@@ -55,30 +57,40 @@ func NewGameMenu(c *Container, s *settings.Settings) *GameMenu {
 
 }
 
-func (gm *GameMenu) StartGameTimer(s *Screen) {
-	ticker := time.NewTicker(1 * time.Second)
-	go func(s *Screen) {
+func (gm *GameMenu) StartGameTimer(s *Screen, op *settings.Settings) {
+	go func(s *Screen, op *settings.Settings) {
 		i := 60
+		winX, _ := s.Window.Size()
 		for {
+			if gm.GameEnd {
+				break
+			}
 			if !gm.GameStart {
 				continue
 			}
+
+			ticker := time.NewTicker(1 * time.Second)
 			select {
 			case <-ticker.C:
 				if i == 60 {
-					print("1:00")
+					s.DrawContent(winX-10, 1, StringToSprite("1:00", op))
+				} else if i > 10 {
+					s.DrawContent(winX-10, 1, StringToSprite(fmt.Sprintf("0:%d", i), op))
 				} else {
-					fmt.Printf("0:%i", i)
+					s.DrawContent(winX-10, 1, StringToSprite(fmt.Sprintf("0:0%d", i), op))
 				}
 				i--
 			}
 			if i == -1 {
 				break
 			}
-			// End the Game
-			return
 		}
-	}(s)
+		s.Window.Clear()
+		s.CurrentMenu = s.MenuList[0]
+		s.CurrentMenu.(*MainMenu).animStopped = false
+		s.CurrentMenu.Resize(s)
+		return
+	}(s, op)
 
 }
 
@@ -96,23 +108,6 @@ func (gm *GameMenu) Show(s *Screen) {
 	}
 	gm.GameCursor.Xpos = gm.words[gm.yIndex][gm.xIndex].Xpos
 	gm.GameCursor.Ypos = gm.words[gm.yIndex][gm.xIndex].Ypos
-	// Debug
-	debug := fmt.Sprintf("cx:%d cy:%d val:%s", gm.words[gm.yIndex][gm.xIndex].Xpos, gm.words[gm.yIndex][gm.xIndex].Ypos, string(gm.words[gm.yIndex][gm.xIndex].Char))
-	debug3 := fmt.Sprintf("cx_begin:%d  cx_end:%d cy_begin:%d cy_end:%d",
-		gm.GameContainer.xBound.begin,
-		gm.GameContainer.xBound.end,
-		gm.GameContainer.yBound.begin,
-		gm.GameContainer.yBound.end)
-	r, _, _, _ := s.Window.GetContent(gm.GameCursor.Xpos, gm.GameContainer.yCursor)
-
-	debug2 := fmt.Sprintf("gcx:%d gcy:%d val:%s", gm.GameCursor.Xpos, gm.GameCursor.Ypos, string(r))
-	debug4 := fmt.Sprintf("wpm: %d", gm.GameStats.Wpm)
-	debug5 := fmt.Sprintf("Word Index: %d", gm.yIndex)
-	s.DrawContent(1, 1, DebugStringToSprite(debug))
-	s.DrawContent(1, 2, DebugStringToSprite(debug3))
-	s.DrawContent(1, 3, DebugStringToSprite(debug2))
-	s.DrawContent(1, 4, DebugStringToSprite(debug4))
-	s.DrawContent(1, 5, DebugStringToSprite(debug5))
 
 	// Draw cursor
 	s.Window.SetContent(gm.GameCursor.Xpos, gm.GameCursor.Ypos, gm.words[gm.yIndex][gm.xIndex].Char, nil, tcell.Style(gm.GameCursor.Style))
@@ -122,13 +117,8 @@ func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 	key := ev.Key()
 
 	if key == tcell.KeyEsc {
-
-		s.Window.Clear()
-		s.CurrentMenu = s.MenuList[0]
-		s.CurrentMenu.(*MainMenu).animStopped = false
-		s.CurrentMenu.Resize(s)
+		gm.GameEnd = true
 		return
-
 	} else if key == tcell.KeyBackspace2 {
 
 		if gm.xIndex-1 < 0 {
@@ -236,6 +226,7 @@ func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 			gm.words[gm.yIndex][gm.xIndex].Style = gm.CorrectTextColor
 			gm.words[gm.yIndex][gm.xIndex].Correct = true
 			gm.GameStats.Streak++
+			gm.GameStats = gm.GameStats.UpdateStreak()
 		}
 		// Draw the Option to the Screen
 		s.Window.SetContent(

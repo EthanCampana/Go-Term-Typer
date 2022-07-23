@@ -82,6 +82,7 @@ func (g *game) Run() {
 			break
 		case <-g.UI.StartGame:
 			g.UI.NewGame(g.Settings)
+			g.UI.CurrentMenu.(*ui.GameMenu).StartGameTimer(g.UI, g.Settings)
 		}
 	}
 }
