@@ -70,7 +70,8 @@ func (g *game) Run() {
 				if ok {
 					val(g.UI)
 				}
-
+			case *ui.GameOverMenu:
+				menu.BackToMainMenu(g.UI)
 			}
 		}
 		select {

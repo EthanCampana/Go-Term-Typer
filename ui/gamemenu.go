@@ -86,8 +86,8 @@ func (gm *GameMenu) StartGameTimer(s *Screen, op *settings.Settings) {
 			}
 		}
 		s.Window.Clear()
-		s.CurrentMenu = s.MenuList[0]
-		s.CurrentMenu.(*MainMenu).animStopped = false
+		gameOver := NewGameOverMenu(gm.GameStats, op)
+		s.CurrentMenu = gameOver
 		s.CurrentMenu.Resize(s)
 		return
 	}(s, op)
@@ -221,12 +221,13 @@ func (gm *GameMenu) KeyListener(ev *tcell.EventKey, s *Screen) {
 		if ev.Rune() != r {
 			gm.words[gm.yIndex][gm.xIndex].Style = gm.IncorrectTextColor
 			gm.words[gm.yIndex][gm.xIndex].Correct = false
+			gm.GameStats.Mistakes++
 			gm.GameStats.Streak = 0
 		} else {
 			gm.words[gm.yIndex][gm.xIndex].Style = gm.CorrectTextColor
 			gm.words[gm.yIndex][gm.xIndex].Correct = true
 			gm.GameStats.Streak++
-			gm.GameStats = gm.GameStats.UpdateStreak()
+			gm.GameStats = gm.GameStats.UpdateStreak(gm.GameStats)
 		}
 		// Draw the Option to the Screen
 		s.Window.SetContent(

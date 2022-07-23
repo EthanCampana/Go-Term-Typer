@@ -16,13 +16,17 @@ func New() *Stats {
 	}
 }
 
-func (s *Stats) UpdateStreak() *Stats {
+func (s *Stats) GetLongestStreak() int {
+	return s.longestStreak
+}
+
+func (s *Stats) UpdateStreak(x *Stats) *Stats {
 	if s.Streak > s.longestStreak {
 		return &Stats{
-			Wpm:           s.Wpm,
-			Streak:        s.Streak,
-			Mistakes:      s.Mistakes,
-			longestStreak: s.Streak,
+			Wpm:           x.Wpm,
+			Streak:        x.Streak,
+			Mistakes:      x.Mistakes,
+			longestStreak: x.Streak,
 		}
 	}
 	return s
