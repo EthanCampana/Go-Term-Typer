@@ -70,7 +70,8 @@ func (g *game) Run() {
 				if ok {
 					val(g.UI)
 				}
-
+			case *ui.GameOverMenu:
+				menu.BackToMainMenu(g.UI)
 			}
 		}
 		select {
@@ -82,6 +83,7 @@ func (g *game) Run() {
 			break
 		case <-g.UI.StartGame:
 			g.UI.NewGame(g.Settings)
+			g.UI.CurrentMenu.(*ui.GameMenu).StartGameTimer(g.UI, g.Settings)
 		}
 	}
 }

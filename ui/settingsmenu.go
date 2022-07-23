@@ -114,7 +114,7 @@ func (sm *SettingsMenu) AnimStart(s *Screen) {
 	framerate := time.NewTicker(1 * time.Second / 5)
 	go func(s *Screen) {
 		i := 0
-		for _ = range framerate.C {
+		for range framerate.C {
 			if !sm.animActive && sm.animStopped {
 				break
 			}
@@ -155,7 +155,7 @@ func (sm *SettingsMenu) Show(s *Screen) {
 		//Move the Cursor to the correct Location
 		s.DrawContent(((winX / 2) - (len(sm.MenuOptions[1]) / 2) - 4), winY/2-12, sm.Cursor)
 	}
-	for i, _ := range sm.MenuOptions {
+	for i := range sm.MenuOptions {
 		//Draws all the menu options
 		offset := (3 * i) - 6
 		s.DrawContent((winX/2)-(len(sm.MenuOptions[1])/2), winY/2+offset, sm.MenuOptions[i])
@@ -166,7 +166,7 @@ func (sm *SettingsMenu) Show(s *Screen) {
 		sm.animActive = true
 	}
 
-	for i, _ := range sm.Title {
+	for i := range sm.Title {
 		s.DrawContent((winX/2)-(len(sm.Title[0])/2), sm.MenuOptions[0][0].Ypos-6+i, sm.Title[i])
 	}
 

@@ -56,7 +56,7 @@ func (mm *MainMenu) AnimStart(s *Screen) {
 	framerate := time.NewTicker(1 * time.Second / 5)
 	go func(s *Screen) {
 		i := 0
-		for _ = range framerate.C {
+		for range framerate.C {
 			if !mm.animActive && mm.animStopped {
 				break
 			}
@@ -99,12 +99,12 @@ func (mm *MainMenu) Show(s *Screen) {
 		mm.animActive = true
 	}
 
-	for i, _ := range mm.MenuOptions {
+	for i := range mm.MenuOptions {
 		//Draws the Menu Options
 		offset := (3 * i) - 3
 		s.DrawContent((winX/2)-(len(mm.MenuOptions[1])/2), winY/2+offset, mm.MenuOptions[i])
 	}
-	for i, _ := range mm.Title {
+	for i := range mm.Title {
 		s.DrawContent((winX/2)-(len(mm.Title[0])/2), mm.MenuOptions[0][0].Ypos-7+i, mm.Title[i])
 	}
 	s.DrawContent((winX/2)+5, mm.Title[2][0].Ypos+2, mm.Credits)
