@@ -1,49 +1,87 @@
-package game
+package Game
 
 import (
+	"termtyper/settings"
 	"termtyper/ui"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 )
 
 type game struct {
-	ui *ui.UI
+	UI       *ui.Screen
+	Settings *settings.Settings
+	ticker   *time.Ticker
 }
 
 func New() *game {
-	c := &ui.cursor{x: 0, y: 0, style: tcell.StyleDefault}
-	ui := &ui.UI{sc: tcell.Screen, c: c}
-	g := &game{ui: ui}
-	return g
+	settings := settings.DefaultSettings()
+	framerate := time.NewTicker(1 * time.Second / time.Duration(settings.FrameRate))
+	return &game{
+		UI:       ui.NewScreen(settings),
+		Settings: settings,
+		ticker:   framerate,
+	}
 
 }
 
 func (g *game) Start() {
-	//Do frame rate stufff
-	//Do Styling Stuff
-	for {
-		g.drawMainMenu()
-	}
-
+	g.startFPS()
+	g.Run()
 }
 
-func (g *game) drawMainMenu() {
-	cursor := "->"
-	menu1 := "Start"
-	menu2 := "Options"
-	menu3 := "Exit"
-	uix, uiy := g.ui.GetSize()
-	//Drawing Start 3 rows up From the Middle of the page
-	g.ui.drawContent((uix/2)-(len(menu2)/2), (uiy/2)-3, menu1, nil, false)
-	//Drawing Options to  the  middle of the UI
-	g.ui.drawContent((uix/2)-(len(menu2)/2), uiy/2, menu2, nil, false)
-	//Drawing Exit 3 rows down from the middle of the page
-	g.ui.drawContent((uix/2)-(len(menu2)/2), (uiy/2)+3, menu1, nil, false)
-	// If theere is no last location set the cursor to location of start
-	if g.ui.c.xpos == 0 {
-		g.ui.c.xpos = (uix / 2) - (len(menu2) / 2) - 4
-		g.ui.c.xpos = (uiy / 2) - 3
+func (g *game) startFPS() {
+	go func() {
+		for _ = range g.ticker.C {
+			g.UI.Window.Show()
+			g.UI.CurrentMenu.Show(g.UI)
+		}
+		return
+	}()
+}
+
+func (g *game) updateUI(s *settings.Settings) *game {
+	g.ticker.Stop()
+	framerate := time.NewTicker(1 * time.Second / time.Duration(s.FrameRate))
+	return &game{
+		UI:       ui.NewScreen(s),
+		Settings: s,
+		ticker:   framerate,
 	}
-	//Draw last location of the cursor
-	g.ui.drawContent(g.ui.c.xpos, g.ui.c.ypos, menu1, g.ui.c.style, false)
+}
+
+func (g *game) Run() {
+	for {
+		ev := g.UI.Window.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventResize:
+			g.UI.CurrentMenu.Resize(g.UI)
+		case *tcell.EventKey:
+			switch menu := g.UI.CurrentMenu.(type) {
+			case *ui.GameMenu:
+				menu.KeyListener(ev, g.UI)
+			case *ui.MainMenu:
+				val, ok := menu.KeyPressListener[ev.Key()]
+				if ok {
+					val(g.UI)
+				}
+			case *ui.SettingsMenu:
+				val, ok := menu.KeyPressListener[ev.Key()]
+				if ok {
+					val(g.UI)
+				}
+
+			}
+		}
+		select {
+		case s := <-g.UI.UpdateChannel:
+			g = g.updateUI(s)
+			g.startFPS()
+			break
+		case <-time.After(5 * time.Millisecond):
+			break
+		case <-g.UI.StartGame:
+			g.UI.NewGame(g.Settings)
+		}
+	}
 }

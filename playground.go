@@ -31,15 +31,16 @@ type words struct {
 	style tcell.Style
 }
 
-func ResizeTextArea(s tcell.Screen, rwords [][]rune, nx, ny int) {
+func ResizeTextArea(s tcell.Screen, rwords [][]rune, nx, ny int, c chan bool, cursor *cursor) {
 	l := 0
 	screen_content := [][]words{}
+	_, _, c_style, _ := s.GetContent(cursor.xpos, cursor.ypos)
 	s.Sync()
 	//GRAB ALL INFO FROM THE SCREEN
 	for z := range rwords {
 		ct := []words{}
-		xpos := (nx / 2) - (len(rwords[l]) / 2) - l
-		ypos := (ny / 2) - l
+		xpos := (nx / 2) - (len(rwords[l]) / 2) + l
+		ypos := (ny / 2) + l
 		for _ = range rwords[z] {
 			r, _, style, _ := s.GetContent(xpos, ypos)
 			word := words{r: r, style: style}
@@ -49,22 +50,28 @@ func ResizeTextArea(s tcell.Screen, rwords [][]rune, nx, ny int) {
 		screen_content = append(screen_content, ct)
 		l++
 	}
+	time.Sleep(1000)
 	//POST GATHERING ALL THE INFO FROM THE SCREEN
 	s.Clear()
 	ox, oy := s.Size()
+
 	l = 0
+	// drawText(s, 0, oy-10, ox, oy, tcell.StyleDefault, fmt.Sprintf("", screen_content[1]))
+	// drawText(s, 0, oy-20, ox, oy, tcell.StyleDefault, fmt.Sprintf("", rwords[1]))
 	for z := range screen_content {
-		xpos := (ox / 2) - (len(rwords[l]) / 2) - l
-		ypos := (oy / 2) - l
+		xpos := (ox / 2) - (len(rwords[l]) / 2) + l
+		ypos := (oy / 2) + l
 		for q := range screen_content[z] {
 			s.SetContent(xpos, ypos, screen_content[z][q].r, nil, screen_content[z][q].style)
+			if screen_content[z][q].style == c_style {
+				cursor.xpos = xpos
+				cursor.ypos = ypos
+			}
 			xpos++
 		}
 		l++
 	}
-	x := fmt.Sprintf("%s", string(screen_content[0][0].r))
-	drawText(s, 0, oy-10, ox, oy, tcell.StyleDefault.Foreground(tcell.Color102), x)
-
+	c <- true
 }
 
 func AdjustBoard(b *board, s tcell.Screen) {
@@ -155,7 +162,7 @@ func TyperPlayground(s tcell.Screen) {
 	val := strings.Split(words, "\n")
 
 	rwords := [][]rune{}
-
+	ch1 := make(chan bool)
 	for _, word := range val {
 
 		k := []rune(word)
@@ -175,18 +182,20 @@ func TyperPlayground(s tcell.Screen) {
 		os.Exit(0)
 	}
 	for {
+		ox, oy = s.Size()
 		r, _, _, _ := s.GetContent(c.xpos, c.ypos)
 		s.SetContent(c.xpos, c.ypos, r, nil, cursorColor)
 		p := float64(progress) / float64(len(rwords)) * 100
 		progress_bar := fmt.Sprintf("Progress: %f percent", p)
-		drawText(s, 0, oy-1, ox, oy, basicText, progress_bar)
+		drawText(s, 0, oy-2, ox, oy, basicText, progress_bar)
 		ev := s.PollEvent()
 		switch ev := ev.(type) {
+		case *tcell.EventResize:
+			go ResizeTextArea(s, rwords, ox, oy, ch1, c)
+			<-ch1
 		case *tcell.EventKey:
 			if ev.Key() == tcell.KeyEscape {
 				quit()
-			} else if ev.Rune() == '1' {
-				ResizeTextArea(s, rwords, ox, oy)
 			} else if ev.Key() == tcell.KeyBackspace2 {
 				if pos == len(rwords[line]) {
 					pos--
