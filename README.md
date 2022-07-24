@@ -13,6 +13,6 @@ A speed and accuracy Typing Test from your terminal!
 Grab an executable from the release Page!
 Or
 Download the source code from the Release Page or Clone the repository!
-'''bash
+```bash
 go run main.go
-'''
+```
