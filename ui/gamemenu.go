@@ -60,8 +60,8 @@ func NewGameMenu(c *Container, s *settings.Settings) *GameMenu {
 func (gm *GameMenu) StartGameTimer(s *Screen, op *settings.Settings) {
 	go func(s *Screen, op *settings.Settings) {
 		i := 60
-		winX, _ := s.Window.Size()
 		for {
+			winX, winY := s.Window.Size()
 			if gm.GameEnd {
 				break
 			}
@@ -73,11 +73,11 @@ func (gm *GameMenu) StartGameTimer(s *Screen, op *settings.Settings) {
 			select {
 			case <-ticker.C:
 				if i == 60 {
-					s.DrawContent(winX-10, 1, StringToSprite("1:00", op))
+					s.DrawContent(winX-10, winY-winY+1, StringToSprite("1:00", op))
 				} else if i > 10 {
-					s.DrawContent(winX-10, 1, StringToSprite(fmt.Sprintf("0:%d", i), op))
+					s.DrawContent(winX-10, winY-winY+1, StringToSprite(fmt.Sprintf("0:%d", i), op))
 				} else {
-					s.DrawContent(winX-10, 1, StringToSprite(fmt.Sprintf("0:0%d", i), op))
+					s.DrawContent(winX-10, winY-winY+1, StringToSprite(fmt.Sprintf("0:%0d", i), op))
 				}
 				i--
 			}
